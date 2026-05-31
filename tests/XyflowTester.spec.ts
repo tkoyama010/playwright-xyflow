@@ -3,7 +3,9 @@ import { XyflowTester } from "../src/index.js";
 
 test.describe("XyflowTester Locators", () => {
 	test.beforeEach(async ({ page }) => {
-		// Inject a mock React Flow DOM structure into the page
+		/**
+		 * Inject a mock React Flow DOM structure into the page
+		 */
 		await page.setContent(`
       <div class="react-flow">
         <div class="react-flow__renderer">
@@ -51,7 +53,9 @@ test.describe("XyflowTester Locators", () => {
 		await expect(targetHandle).toHaveClass(/react-flow__handle-target/u);
 		await expect(targetHandle).toHaveAttribute("data-handleid", "target-a");
 
-		// Test without handleId
+		/**
+		 * Test without handleId
+		 */
 		const targetHandle2 = flow.getHandleLocator("node-2", "target");
 		await expect(targetHandle2).toBeVisible();
 		await expect(targetHandle2).toHaveClass(/react-flow__handle-target/u);
@@ -69,7 +73,9 @@ test.describe("XyflowTester Locators", () => {
 	});
 
 	test("should support svelte-flow prefix", async ({ page }) => {
-		// Inject a mock Svelte Flow DOM
+		/**
+		 * Inject a mock Svelte Flow DOM
+		 */
 		await page.setContent(`
       <div class="my-svelte-flow">
         <div class="svelte-flow__node" data-id="s-node-1" style="width: 50px; height: 50px;"></div>
