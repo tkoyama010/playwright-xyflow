@@ -1,0 +1,97 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.4.16/schema.json",
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
+	"files": {
+		"includes": ["**", "!!**/dist"]
+	},
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab"
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"a11y": "error",
+			"complexity": "error",
+			"correctness": "error",
+			"nursery": "error",
+			"performance": "error",
+			"security": "error",
+			"style": "error",
+			"suspicious": "error"
+		}
+	},
+	"javascript": {
+		"formatter": {
+			"quoteStyle": "double"
+		}
+	},
+	"assist": {
+		"enabled": true,
+		"actions": {
+			"source": {
+				"organizeImports": "on"
+			}
+		}
+	},
+	"overrides": [
+		{
+			"includes": ["*.config.ts"],
+			"linter": {
+				"rules": {
+					"style": {
+						"noDefaultExport": "off",
+						"noProcessEnv": "off"
+					},
+					"nursery": {
+						"noTernary": "off"
+					},
+					"correctness": {
+						"noNodejsModules": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": ["tests/**/*.ts"],
+			"linter": {
+				"rules": {
+					"performance": {
+						"useTopLevelRegex": "off"
+					},
+					"style": {
+						"useFilenamingConvention": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": ["src/index.ts"],
+			"linter": {
+				"rules": {
+					"performance": {
+						"noBarrelFile": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": ["src/XyflowTester.ts"],
+			"linter": {
+				"rules": {
+					"performance": {
+						"noAwaitInLoops": "off"
+					},
+					"nursery": {
+						"noIncrementDecrement": "off",
+						"noTernary": "off"
+					}
+				}
+			}
+		}
+	]
+}

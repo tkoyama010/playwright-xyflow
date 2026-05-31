@@ -1,10 +1,10 @@
-import { test, expect } from '@playwright/test';
-import { XyflowTester } from '../src/index.js';
+import { expect, test } from "@playwright/test";
+import { XyflowTester } from "../src/index.js";
 
-test.describe('XyflowTester Locators', () => {
-  test.beforeEach(async ({ page }) => {
-    // Inject a mock React Flow DOM structure into the page
-    await page.setContent(`
+test.describe("XyflowTester Locators", () => {
+	test.beforeEach(async ({ page }) => {
+		// Inject a mock React Flow DOM structure into the page
+		await page.setContent(`
       <div class="react-flow">
         <div class="react-flow__renderer">
           <div class="react-flow__pane"></div>
@@ -23,57 +23,63 @@ test.describe('XyflowTester Locators', () => {
         </div>
       </div>
     `);
-  });
+	});
 
-  test('getNodeLocator should locate nodes by id', async ({ page }) => {
-    const flow = new XyflowTester(page, '.react-flow');
-    
-    const node1 = flow.getNodeLocator('node-1');
-    await expect(node1).toBeVisible();
-    await expect(node1).toHaveAttribute('data-id', 'node-1');
+	test("getNodeLocator should locate nodes by id", async ({ page }) => {
+		const flow = new XyflowTester(page, ".react-flow");
 
-    const node2 = flow.getNodeLocator('node-2');
-    await expect(node2).toBeVisible();
-  });
+		const node1 = flow.getNodeLocator("node-1");
+		await expect(node1).toBeVisible();
+		await expect(node1).toHaveAttribute("data-id", "node-1");
 
-  test('getHandleLocator should locate handles by node id, type, and handle id', async ({ page }) => {
-    const flow = new XyflowTester(page, '.react-flow');
-    
-    const sourceHandle = flow.getHandleLocator('node-1', 'source', 'source-a');
-    await expect(sourceHandle).toBeVisible();
-    await expect(sourceHandle).toHaveClass(/react-flow__handle-source/);
-    await expect(sourceHandle).toHaveAttribute('data-handleid', 'source-a');
+		const node2 = flow.getNodeLocator("node-2");
+		await expect(node2).toBeVisible();
+	});
 
-    const targetHandle = flow.getHandleLocator('node-1', 'target', 'target-a');
-    await expect(targetHandle).toBeVisible();
-    await expect(targetHandle).toHaveClass(/react-flow__handle-target/);
-    await expect(targetHandle).toHaveAttribute('data-handleid', 'target-a');
+	test("getHandleLocator should locate handles by node id, type, and handle id", async ({
+		page,
+	}) => {
+		const flow = new XyflowTester(page, ".react-flow");
 
-    // Test without handleId
-    const targetHandle2 = flow.getHandleLocator('node-2', 'target');
-    await expect(targetHandle2).toBeVisible();
-    await expect(targetHandle2).toHaveClass(/react-flow__handle-target/);
-  });
+		const sourceHandle = flow.getHandleLocator("node-1", "source", "source-a");
+		await expect(sourceHandle).toBeVisible();
+		await expect(sourceHandle).toHaveClass(/react-flow__handle-source/u);
+		await expect(sourceHandle).toHaveAttribute("data-handleid", "source-a");
 
-  test('getEdgeLocator should locate edges by source and target node ids', async ({ page }) => {
-    const flow = new XyflowTester(page, '.react-flow');
-    
-    const edge = flow.getEdgeLocator('node-1', 'node-2');
-    await expect(edge).toBeVisible();
-    await expect(edge).toHaveClass(/react-flow__edge-path/);
-    await expect(edge).toHaveAttribute('data-testid', 'rf__edge-node-1-node-2');
-  });
+		const targetHandle = flow.getHandleLocator("node-1", "target", "target-a");
+		await expect(targetHandle).toBeVisible();
+		await expect(targetHandle).toHaveClass(/react-flow__handle-target/u);
+		await expect(targetHandle).toHaveAttribute("data-handleid", "target-a");
 
-  test('should support svelte-flow prefix', async ({ page }) => {
-    // Inject a mock Svelte Flow DOM
-    await page.setContent(`
+		// Test without handleId
+		const targetHandle2 = flow.getHandleLocator("node-2", "target");
+		await expect(targetHandle2).toBeVisible();
+		await expect(targetHandle2).toHaveClass(/react-flow__handle-target/u);
+	});
+
+	test("getEdgeLocator should locate edges by source and target node ids", async ({
+		page,
+	}) => {
+		const flow = new XyflowTester(page, ".react-flow");
+
+		const edge = flow.getEdgeLocator("node-1", "node-2");
+		await expect(edge).toBeVisible();
+		await expect(edge).toHaveClass(/react-flow__edge-path/u);
+		await expect(edge).toHaveAttribute("data-testid", "rf__edge-node-1-node-2");
+	});
+
+	test("should support svelte-flow prefix", async ({ page }) => {
+		// Inject a mock Svelte Flow DOM
+		await page.setContent(`
       <div class="my-svelte-flow">
         <div class="svelte-flow__node" data-id="s-node-1" style="width: 50px; height: 50px;"></div>
       </div>
     `);
 
-    const flow = new XyflowTester(page, '.my-svelte-flow', { prefix: 'svelte-flow' });
-    const node = flow.getNodeLocator('s-node-1');
-    await expect(node).toBeVisible();
-  });
+		const flow = new XyflowTester(page, ".my-svelte-flow", {
+			prefix: "svelte-flow",
+		});
+		const node = flow.getNodeLocator("s-node-1");
+		await expect(node).toBeVisible();
+	});
 });
