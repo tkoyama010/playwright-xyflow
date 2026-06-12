@@ -21,7 +21,8 @@
 		"dev": "tsup --watch",
 		"format": "biome format --write .",
 		"lint": "biome check .",
-		"test": "playwright test"
+		"test": "playwright test",
+		"prepare": "npm run build"
 	},
 	"repository": {
 		"type": "git",

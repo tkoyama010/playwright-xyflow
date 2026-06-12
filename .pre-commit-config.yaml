@@ -4,3 +4,7 @@ repos:
     hooks:
       - id: biome-check
         additional_dependencies: ["@biomejs/biome@2.4.16"]
+  - repo: https://github.com/tkoyama010/standard-readme-pre-commit
+    rev: 8a8642b27b2d8dad2413a7df7eb5c8c1c635d0a2
+    hooks:
+      - id: standard-readme
