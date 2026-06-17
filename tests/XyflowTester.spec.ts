@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import { XyflowTester } from "../src/index.js";
 
 /**
@@ -88,6 +89,36 @@ test.describe("XyflowTester Locators", () => {
 	});
 });
 
+async function setupDragTracking(page: Page, nodeId: string): Promise<void> {
+	await page.evaluate((id) => {
+		const node = document.querySelector(`[data-id="${id}"]`);
+		if (!node) {
+			return;
+		}
+		const g = globalThis as unknown as { mouseEvents: unknown[] };
+		g.mouseEvents = [];
+		node.addEventListener("mousedown", (e) => {
+			const me = e as MouseEvent;
+			g.mouseEvents.push({ type: "mousedown", x: me.clientX, y: me.clientY });
+		});
+		const move = (e: Event): void => {
+			const me = e as MouseEvent;
+			if (g.mouseEvents.length > 0) {
+				g.mouseEvents.push({ type: "mousemove", x: me.clientX, y: me.clientY });
+			}
+		};
+		globalThis.addEventListener("mousemove", move);
+		globalThis.addEventListener(
+			"mouseup",
+			(e) => {
+				const me = e as MouseEvent;
+				g.mouseEvents.push({ type: "mouseup", x: me.clientX, y: me.clientY });
+			},
+			{ once: true },
+		);
+	}, nodeId);
+}
+
 test.describe("XyflowTester Interactions", () => {
 	test.beforeEach(async ({ page }) => {
 		await page.setContent(`
@@ -155,32 +186,29 @@ test.describe("XyflowTester Interactions", () => {
 
 	test("dragNode should simulate dragging a node", async ({ page }) => {
 		const flow = new XyflowTester(page, ".react-flow");
+		const nodeId = "node-1";
 
-		await page.evaluate(() => {
-			const events: any[] = [];
-			window.addEventListener("mousedown", (e) =>
-				events.push({ type: "mousedown", x: e.clientX, y: e.clientY }),
-			);
-			window.addEventListener("mouseup", (e) =>
-				events.push({ type: "mouseup", x: e.clientX, y: e.clientY }),
-			);
-			(window as any)._events = events;
-		});
+		await setupDragTracking(page, nodeId);
 
-		await flow.dragNode("node-1", { deltaX: 100, deltaY: 100 });
+		await flow.dragNode(nodeId, { deltaX: 100, deltaY: 100 });
 
-		const capturedEvents = await page.evaluate(() => (window as any)._events);
+		const events = await page.evaluate(
+			() =>
+				(globalThis as unknown as { mouseEvents: Record<string, unknown>[] })
+					.mouseEvents,
+		);
 
-		const mouseDown = capturedEvents.find((e: any) => e.type === "mousedown");
-		const mouseUp = capturedEvents.find((e: any) => e.type === "mouseup");
+		expect(events[0].type).toBe("mousedown");
+		expect(events.some((e) => e.type === "mousemove")).toBe(true);
+		expect(events.at(-1)?.type).toBe("mouseup");
 
 		// Node 1 is at (0,0) with size 100x50. Center is (50, 25).
-		expect(mouseDown.x).toBeCloseTo(50, 0);
-		expect(mouseDown.y).toBeCloseTo(25, 0);
+		expect(events[0].x).toBeCloseTo(50, 0);
+		expect(events[0].y).toBeCloseTo(25, 0);
 
 		// Dragged by (100, 100). End center should be (150, 125).
-		expect(mouseUp.x).toBeCloseTo(150, 0);
-		expect(mouseUp.y).toBeCloseTo(125, 0);
+		expect(events.at(-1)?.x).toBeCloseTo(150, 0);
+		expect(events.at(-1)?.y).toBeCloseTo(125, 0);
 	});
 
 	test("panCanvas should simulate panning the canvas", async ({ page }) => {
