@@ -2,6 +2,12 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { XyflowTester } from "../src/index.js";
 
+interface CapturedEvent {
+	type: string;
+	x: number;
+	y: number;
+}
+
 /**
  * XyflowTester Locators
  *
@@ -95,7 +101,7 @@ async function setupDragTracking(page: Page, nodeId: string): Promise<void> {
 		if (!node) {
 			return;
 		}
-		const g = globalThis as unknown as { mouseEvents: unknown[] };
+		const g = globalThis as unknown as { mouseEvents: CapturedEvent[] };
 		g.mouseEvents = [];
 		node.addEventListener("mousedown", (e) => {
 			const me = e as MouseEvent;
@@ -119,7 +125,7 @@ async function setupDragTracking(page: Page, nodeId: string): Promise<void> {
 	}, nodeId);
 }
 
-test.describe("XyflowTester Interactions", () => {
+test.describe("XyflowTester Interactions - connectNodes", () => {
 	test.beforeEach(async ({ page }) => {
 		await page.setContent(`
       <style>
@@ -148,14 +154,14 @@ test.describe("XyflowTester Interactions", () => {
 
 		// Track mouse events to verify interactions
 		await page.evaluate(() => {
-			const events: any[] = [];
-			window.addEventListener("mousedown", (e) =>
+			const events: CapturedEvent[] = [];
+			globalThis.addEventListener("mousedown", (e) =>
 				events.push({ type: "mousedown", x: e.clientX, y: e.clientY }),
 			);
-			window.addEventListener("mouseup", (e) =>
+			globalThis.addEventListener("mouseup", (e) =>
 				events.push({ type: "mouseup", x: e.clientX, y: e.clientY }),
 			);
-			(window as any)._events = events;
+			(globalThis as unknown as { _events: CapturedEvent[] })._events = events;
 		});
 
 		await flow.connectNodes({
@@ -164,24 +170,51 @@ test.describe("XyflowTester Interactions", () => {
 			targetNodeId: "node-2",
 		});
 
-		const capturedEvents = await page.evaluate(() => (window as any)._events);
+		const capturedEvents = await page.evaluate(
+			() => (globalThis as unknown as { _events: CapturedEvent[] })._events,
+		);
 
 		// We expect at least mousedown and mouseup
-		const mouseDown = capturedEvents.find((e: any) => e.type === "mousedown");
-		const mouseUp = capturedEvents.find((e: any) => e.type === "mouseup");
+		const mouseDown = capturedEvents.find((e) => e.type === "mousedown");
+		const mouseUp = capturedEvents.find((e) => e.type === "mouseup");
 
-		expect(mouseDown).toBeDefined();
-		expect(mouseUp).toBeDefined();
+		if (!(mouseDown && mouseUp)) {
+			throw new Error("Mouse events not captured");
+		}
 
 		// Node 1 is at 0,0, size 100x50. Source handle is at right:0, top:20, size 10px x 10px.
 		// So source handle is at x=90 to 100, y=20 to 30. Center is (95, 25).
-		expect(mouseDown.x).toBeCloseTo(95, 0);
-		expect(mouseDown.y).toBeCloseTo(25, 0);
+		const ExpectedSourceX = 95;
+		const ExpectedSourceY = 25;
+		expect(mouseDown.x).toBeCloseTo(ExpectedSourceX, 0);
+		expect(mouseDown.y).toBeCloseTo(ExpectedSourceY, 0);
 
 		// Node 2 is at 200,200, size 100x50. Target handle is at left:0, top:20, size 10px x 10px.
 		// So target handle is at x=200 to 210, y=220 to 230. Center is (205, 225).
-		expect(mouseUp.x).toBeCloseTo(205, 0);
-		expect(mouseUp.y).toBeCloseTo(225, 0);
+		const ExpectedTargetX = 205;
+		const ExpectedTargetY = 225;
+		expect(mouseUp.x).toBeCloseTo(ExpectedTargetX, 0);
+		expect(mouseUp.y).toBeCloseTo(ExpectedTargetY, 0);
+	});
+});
+
+test.describe("XyflowTester Interactions - dragNode", () => {
+	test.beforeEach(async ({ page }) => {
+		await page.setContent(`
+      <style>
+        body { margin: 0; padding: 0; }
+      </style>
+      <div class="react-flow" style="width: 500px; height: 500px;">
+        <div class="react-flow__renderer">
+          <div class="react-flow__pane" style="width: 500px; height: 500px;"></div>
+          <div class="react-flow__nodes">
+            <div class="react-flow__node" data-id="node-1" style="position: absolute; left: 0px; top: 0px; width: 100px; height: 50px;">
+              <div class="react-flow__handle-source react-flow__handle" data-handleid="source-a" style="position: absolute; right: 0px; top: 20px; width: 10px; height: 10px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `);
 	});
 
 	test("dragNode should simulate dragging a node", async ({ page }) => {
@@ -190,54 +223,93 @@ test.describe("XyflowTester Interactions", () => {
 
 		await setupDragTracking(page, nodeId);
 
-		await flow.dragNode(nodeId, { deltaX: 100, deltaY: 100 });
+		const DragDeltaX = 100;
+		const DragDeltaY = 100;
+		await flow.dragNode(nodeId, { deltaX: DragDeltaX, deltaY: DragDeltaY });
 
 		const events = await page.evaluate(
 			() =>
-				(globalThis as unknown as { mouseEvents: Record<string, unknown>[] })
-					.mouseEvents,
+				(globalThis as unknown as { mouseEvents: CapturedEvent[] }).mouseEvents,
 		);
 
 		expect(events[0].type).toBe("mousedown");
 		expect(events.some((e) => e.type === "mousemove")).toBe(true);
 		expect(events.at(-1)?.type).toBe("mouseup");
 
+		const [mouseDown] = events;
+		const mouseUp = events.at(-1);
+
+		if (!(mouseDown && mouseUp)) {
+			throw new Error("Mouse events not captured");
+		}
+
 		// Node 1 is at (0,0) with size 100x50. Center is (50, 25).
-		expect(events[0].x).toBeCloseTo(50, 0);
-		expect(events[0].y).toBeCloseTo(25, 0);
+		const InitialCenterX = 50;
+		const InitialCenterY = 25;
+		expect(mouseDown.x).toBeCloseTo(InitialCenterX, 0);
+		expect(mouseDown.y).toBeCloseTo(InitialCenterY, 0);
 
 		// Dragged by (100, 100). End center should be (150, 125).
-		expect(events.at(-1)?.x).toBeCloseTo(150, 0);
-		expect(events.at(-1)?.y).toBeCloseTo(125, 0);
+		const FinalCenterX = 150;
+		const FinalCenterY = 125;
+		expect(mouseUp.x).toBeCloseTo(FinalCenterX, 0);
+		expect(mouseUp.y).toBeCloseTo(FinalCenterY, 0);
+	});
+});
+
+test.describe("XyflowTester Interactions - panCanvas", () => {
+	test.beforeEach(async ({ page }) => {
+		await page.setContent(`
+      <style>
+        body { margin: 0; padding: 0; }
+      </style>
+      <div class="react-flow" style="width: 500px; height: 500px;">
+        <div class="react-flow__renderer">
+          <div class="react-flow__pane" style="width: 500px; height: 500px;"></div>
+        </div>
+      </div>
+    `);
 	});
 
 	test("panCanvas should simulate panning the canvas", async ({ page }) => {
 		const flow = new XyflowTester(page, ".react-flow");
 
 		await page.evaluate(() => {
-			const events: any[] = [];
-			window.addEventListener("mousedown", (e) =>
+			const events: CapturedEvent[] = [];
+			globalThis.addEventListener("mousedown", (e) =>
 				events.push({ type: "mousedown", x: e.clientX, y: e.clientY }),
 			);
-			window.addEventListener("mouseup", (e) =>
+			globalThis.addEventListener("mouseup", (e) =>
 				events.push({ type: "mouseup", x: e.clientX, y: e.clientY }),
 			);
-			(window as any)._events = events;
+			(globalThis as unknown as { _events: CapturedEvent[] })._events = events;
 		});
 
-		await flow.panCanvas({ deltaX: 50, deltaY: 50 });
+		const PanDeltaX = 50;
+		const PanDeltaY = 50;
+		await flow.panCanvas({ deltaX: PanDeltaX, deltaY: PanDeltaY });
 
-		const capturedEvents = await page.evaluate(() => (window as any)._events);
+		const capturedEvents = await page.evaluate(
+			() => (globalThis as unknown as { _events: CapturedEvent[] })._events,
+		);
 
-		const mouseDown = capturedEvents.find((e: any) => e.type === "mousedown");
-		const mouseUp = capturedEvents.find((e: any) => e.type === "mouseup");
+		const mouseDown = capturedEvents.find((e) => e.type === "mousedown");
+		const mouseUp = capturedEvents.find((e) => e.type === "mouseup");
+
+		if (!(mouseDown && mouseUp)) {
+			throw new Error("Mouse events not captured");
+		}
 
 		// Pane is 500x500 at (0,0). Center is (250, 250).
-		expect(mouseDown.x).toBeCloseTo(250, 0);
-		expect(mouseDown.y).toBeCloseTo(250, 0);
+		const PaneCenterX = 250;
+		const PaneCenterY = 250;
+		expect(mouseDown.x).toBeCloseTo(PaneCenterX, 0);
+		expect(mouseDown.y).toBeCloseTo(PaneCenterY, 0);
 
 		// Panned by (50, 50). End center should be (300, 300).
-		expect(mouseUp.x).toBeCloseTo(300, 0);
-		expect(mouseUp.y).toBeCloseTo(300, 0);
+		const PaneFinalX = 300;
+		const PaneFinalY = 300;
+		expect(mouseUp.x).toBeCloseTo(PaneFinalX, 0);
+		expect(mouseUp.y).toBeCloseTo(PaneFinalY, 0);
 	});
 });
